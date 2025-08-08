@@ -7,5 +7,9 @@
     "us-east-2a",
     "us-east-2b",
     "us-east-2c"
-  ]
+  ],
+  "hosted-zone:account=815632284395:domainName=sergeant.org:region=us-east-2": {
+    "Id": "/hostedzone/ZLGLVWMYJK971",
+    "Name": "sergeant.org."
+  }
 }

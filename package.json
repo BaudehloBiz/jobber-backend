@@ -1,10 +1,10 @@
 {
-  "name": "baudehlo/node-nestjs-starter",
+  "name": "jobber-backend",
   "version": "0.0.1",
-  "description": "Starter Template for NestJS with Fastify, Prisma, Sentry, and more",
+  "description": "Backend for Jobber",
   "author": "",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "scripts": {
     "build": "nest build",
     "build:sentry": "nest build && npm run sentry:sourcemaps",
@@ -56,6 +56,7 @@
     "hot-shots": "^10.0.0",
     "ioredis": "^5.6.1",
     "nestjs-hot-shots": "^3.1.0",
+    "pg-boss": "^10.3.2",
     "redis": "^5.6.0",
     "redlock": "^5.0.0-beta.2",
     "reflect-metadata": "^0.2.2",
@@ -104,6 +105,7 @@
     ],
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/src/$1",
+      "^test/(.*)$": "<rootDir>/test/$1",
       "^generated/(.*)$": "<rootDir>/generated/$1",
       "^prisma/(.*)$": "<rootDir>/prisma/$1"
     },
@@ -115,7 +117,11 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
+    "setupFiles": [
+      "dotenv/config"
+    ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "testTimeout": 40000
   }
 }

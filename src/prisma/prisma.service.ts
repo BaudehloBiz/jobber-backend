@@ -58,6 +58,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     await this.$disconnect();
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async executeSql(sql: string, params?: any[]): Promise<{ rows: any[] }> {
+    sql = sql.replace(/to_regclass\(([^)]+)\)/g, 'to_regclass($1)::text');
+    this.logger.debug(`Executing SQL: ${sql} with params: ${JSON.stringify(params)}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+    const result: any[] = await this.$queryRawUnsafe(sql, ...(params || []));
+    return { rows: result };
+  }
+
   @Interval(intervalTime)
   async metricsSender(): Promise<void> {
     if (process.env.NODE_ENV != Environment.production) {

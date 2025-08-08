@@ -1,4 +1,4 @@
-import { DynamicModule } from '@nestjs/common';
+import { DynamicModule, Type } from '@nestjs/common';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
 import { ConfigModule } from '@nestjs/config';
@@ -10,10 +10,12 @@ import { Cluster, RedisManagerService, RedisService } from './common/services/re
 import Redis from 'ioredis';
 import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { APP_FILTER } from '@nestjs/core';
+import { PrismaClient } from '@prisma/client';
+import { PgBossService } from './common/services/pg-boss.service';
 // import { Logger } from './common/services/logger';
 
 // app.module.ts
-export async function createAppModule(): Promise<DynamicModule> {
+export async function createAppModule(controllers?: Type<unknown>[], prismaClient?: PrismaClient): Promise<DynamicModule> {
   // const logger = new Logger('AppModule');
   const redisService = new RedisService();
   const redisClient = (await redisService.getClient()) as Redis | Cluster;
@@ -33,9 +35,10 @@ export async function createAppModule(): Promise<DynamicModule> {
 
   return {
     module: class AppModule {},
+    controllers,
     imports: [
       SentryModule.forRoot(),
-      PrismaModule,
+      prismaClient ? PrismaModule.forTest(prismaClient) : PrismaModule,
       HealthModule,
       ConfigModule.forRoot(),
       HotShotsModule.forRoot({
@@ -54,6 +57,7 @@ export async function createAppModule(): Promise<DynamicModule> {
       AppService,
       { provide: RedisService, useValue: redisService },
       RedisManagerService,
+      PgBossService,
     ],
   };
 }

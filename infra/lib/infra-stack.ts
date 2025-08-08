@@ -32,6 +32,20 @@ export class InfraStack extends cdk.Stack {
       comment: `Hosted zone for ${name}/${env} environment: ${zoneName}`,
     });
 
+    const zoneParts = zoneName.split('.');
+    if (hostedZone.hostedZoneNameServers && zoneParts.length > 2) {
+      const parentZoneName = zoneParts.slice(-2).join('.');
+      const parentZone = r53.HostedZone.fromLookup(this, `${name}/${env}/ParentHostedZone`, {
+        domainName: parentZoneName,
+      });
+      new r53.NsRecord(this, `${name}/${env}/NSRecord`, {
+        zone: parentZone,
+        deleteExisting: true,
+        recordName: zoneName.replace(`.${parentZoneName}`, ''),
+        values: hostedZone.hostedZoneNameServers,
+      });
+    }
+
     const vpc = new ec2.Vpc(this, `${name}/${env}/VPC`, {
       maxAzs: 2, // Default is all AZs in region
       enableDnsSupport: true,
