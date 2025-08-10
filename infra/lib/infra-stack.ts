@@ -208,7 +208,7 @@ export class InfraStack extends cdk.Stack {
     const db_password = dbSecret.secretValueFromJson('password').unsafeUnwrap();
     const db_host = dbCluster.clusterEndpoint.hostname;
     const db_port = dbSecret.secretValueFromJson('port').unsafeUnwrap();
-    const db_url = `postgres://${db_username}:${db_password}@${db_host}:${db_port}/api`;
+    const db_url = `postgres://${db_username}:${db_password}@${db_host}:${db_port}/api?sslmode=no-verify`;
     const dbUrlSecret = new secretsmanager.Secret(this, `${name}/${env}/DbUrlSecret`, {
       secretName: `${name}/${env}/API-DB-URL`,
       secretStringValue: cdk.SecretValue.unsafePlainText(db_url),
@@ -274,6 +274,15 @@ export class InfraStack extends cdk.Stack {
       minHealthyPercent: 50,
       maxHealthyPercent: 200,
     });
+
+    fargateService
+      .autoScaleTaskCount({
+        minCapacity: 1,
+        maxCapacity: 20,
+      })
+      .scaleOnCpuUtilization('CpuScaling', {
+        targetUtilizationPercent: 50,
+      });
 
     const certificate = new Certificate(this, `${name}/${env}/TLS-Certificate`, {
       domainName: `*.${zoneName}`,
@@ -396,14 +405,14 @@ export function statsdService(
     },
   });
 
-  const scalableTarget = service.autoScaleTaskCount({
-    minCapacity: 1,
-    maxCapacity: 20,
-  });
-
-  scalableTarget.scaleOnCpuUtilization('CpuScaling', {
-    targetUtilizationPercent: 50,
-  });
+  service
+    .autoScaleTaskCount({
+      minCapacity: 1,
+      maxCapacity: 20,
+    })
+    .scaleOnCpuUtilization('CpuScaling', {
+      targetUtilizationPercent: 50,
+    });
 
   return service;
 }
