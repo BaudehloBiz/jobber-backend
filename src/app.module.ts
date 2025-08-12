@@ -10,9 +10,10 @@ import { Cluster, RedisManagerService, RedisService } from './common/services/re
 import Redis from 'ioredis';
 import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { APP_FILTER } from '@nestjs/core';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from 'generated/prisma/client';
 import { PgBossService } from './common/services/pg-boss.service';
 // import { Logger } from './common/services/logger';
+import { JobberGateway } from './websocket/websocket.gateway';
 
 // app.module.ts
 export async function createAppModule(controllers?: Type<unknown>[], prismaClient?: PrismaClient): Promise<DynamicModule> {
@@ -48,6 +49,7 @@ export async function createAppModule(controllers?: Type<unknown>[], prismaClien
         mock: process.env.NODE_ENV !== 'production' || process.env.STATSD_MOCK === 'true',
       }),
       throttlerModule,
+      JobberGateway,
     ],
     providers: [
       {
@@ -58,6 +60,7 @@ export async function createAppModule(controllers?: Type<unknown>[], prismaClien
       { provide: RedisService, useValue: redisService },
       RedisManagerService,
       PgBossService,
+      JobberGateway,
     ],
   };
 }

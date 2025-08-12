@@ -17,6 +17,7 @@ import { RedisService } from './common/services/redis';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import bytes from 'bytes';
 import { readFile } from 'node:fs/promises';
+import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
 
 declare module 'fastify' {
   interface Session {
@@ -42,6 +43,10 @@ async function bootstrap() {
     const appModule = await createAppModule();
     const app = await NestFactory.create<NestFastifyApplication>(appModule, new FastifyAdapter(instance));
     await app.init();
+
+    const redisIoAdapter = new RedisIoAdapter(app);
+    await redisIoAdapter.connectToRedis();
+    app.useWebSocketAdapter(redisIoAdapter);
 
     const redisService = await app.resolve(RedisService);
 

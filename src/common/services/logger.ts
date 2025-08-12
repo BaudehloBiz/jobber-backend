@@ -78,3 +78,17 @@ export class Logger extends ConsoleLogger {
     this.logMessage('verbose', message, ...optionalParams);
   }
 }
+
+const systemLogger = new Logger('System');
+process.on('warning', (warning) => {
+  systemLogger.warn(warning.name, warning.message, warning.stack);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  systemLogger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  Sentry.captureException(reason);
+});
+process.on('uncaughtException', (error) => {
+  systemLogger.error('Uncaught Exception thrown:', error.message, error.stack);
+  Sentry.captureException(error);
+  process.exit(1);
+});

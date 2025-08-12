@@ -77,6 +77,14 @@ export class RedisMock {
   async disconnect(): Promise<void> {
     // do nothing
   }
+
+  duplicate(): RedisMock {
+    return new RedisMock();
+  }
+
+  connect(): Promise<void> {
+    return Promise.resolve();
+  }
 }
 
 export class RedlockMock {
