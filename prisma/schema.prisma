@@ -34,3 +34,26 @@ model ApiToken {
   @@index([token, expires])
   @@map("api_tokens")
 }
+
+// Customer tokens for the jobber queue system
+model CustomerToken {
+  id String @id @default(dbgenerated("nanoid('tok')"))
+
+  /// @IsString()
+  token String @unique
+
+  /// @IsString()
+  customerId String @map("customer_id")
+
+  /// @IsString()
+  description String?
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@index([token])
+  @@index([customerId])
+  @@map("customer_tokens")
+}

@@ -27,7 +27,8 @@
     "db:seed": "prisma db seed",
     "db:bootstrap": "ts-node -r tsconfig-paths/register bootstrap.ts 'FIX-ME-IN-DB'",
     "db:lint": "prisma format && prisma-lint",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org baudehlo --project node-nestjs-starter ./dist && sentry-cli sourcemaps upload --org baudehlo --project node-nestjs-starter ./dist"
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org baudehlo --project node-nestjs-starter ./dist && sentry-cli sourcemaps upload --org baudehlo --project node-nestjs-starter ./dist",
+    "deploy": "cd infra && npm i && npx cdk deploy --require-approval never && cd -"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

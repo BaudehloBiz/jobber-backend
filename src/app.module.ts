@@ -1,4 +1,4 @@
-import { DynamicModule, Type } from '@nestjs/common';
+import { DynamicModule, ModuleMetadata, Type } from '@nestjs/common';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
 import { ConfigModule } from '@nestjs/config';
@@ -17,11 +17,16 @@ import { JobberGateway } from './websocket/websocket.gateway';
 
 // app.module.ts
 export async function createAppModule(controllers?: Type<unknown>[], prismaClient?: PrismaClient): Promise<DynamicModule> {
-  // const logger = new Logger('AppModule');
+  const appModule = await createAppModuleForTest(controllers, prismaClient);
+  return {
+    ...appModule,
+    module: class AppModule {},
+  };
+}
+
+export async function createAppModuleForTest(controllers?: Type<unknown>[], prismaClient?: PrismaClient): Promise<ModuleMetadata> {
   const redisService = new RedisService();
   const redisClient = (await redisService.getClient()) as Redis | Cluster;
-  // logger.log(`Redis client initialized: ${redisClient instanceof Redis ? 'Single instance' : (redisClient instanceof Cluster ? 'Cluster instance' : 'Unknown instance')}`);
-  // hack so we can replace the internals with our redis client
   const throttlerStorage = new ThrottlerStorageRedisService({ lazyConnect: true });
   throttlerStorage.redis = redisClient;
   const throttlerModule = ThrottlerModule.forRoot({
@@ -35,7 +40,6 @@ export async function createAppModule(controllers?: Type<unknown>[], prismaClien
   });
 
   return {
-    module: class AppModule {},
     controllers,
     imports: [
       SentryModule.forRoot(),
@@ -49,7 +53,6 @@ export async function createAppModule(controllers?: Type<unknown>[], prismaClien
         mock: process.env.NODE_ENV !== 'production' || process.env.STATSD_MOCK === 'true',
       }),
       throttlerModule,
-      JobberGateway,
     ],
     providers: [
       {
