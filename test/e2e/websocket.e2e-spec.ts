@@ -8,6 +8,7 @@ import io from 'socket.io-client';
 import { JobberGateway } from '../../src/websocket/websocket.gateway';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { PgBossService } from '../../src/common/services/pg-boss.service';
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 
 describe('JobberGateway (e2e)', () => {
   let app: INestApplication;
@@ -41,7 +42,7 @@ describe('JobberGateway (e2e)', () => {
       ],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
     // Gateway is tested through WebSocket connections
     prismaService = moduleFixture.get<PrismaService>(PrismaService);
     pgBossService = moduleFixture.get<PgBossService>(PgBossService);
