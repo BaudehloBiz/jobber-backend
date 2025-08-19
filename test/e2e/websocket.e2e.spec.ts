@@ -1,14 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
 import io from 'socket.io-client';
 import { JobberGateway } from '../../src/websocket/websocket.gateway';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { PgBossService } from '../../src/common/services/pg-boss.service';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import { INestApplication } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 describe('JobberGateway (e2e)', () => {
   let app: INestApplication;
@@ -42,7 +39,9 @@ describe('JobberGateway (e2e)', () => {
       ],
     }).compile();
 
-    app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app = moduleFixture.createNestApplication();
+    app.useWebSocketAdapter(new IoAdapter(app));
+
     // Gateway is tested through WebSocket connections
     prismaService = moduleFixture.get<PrismaService>(PrismaService);
     pgBossService = moduleFixture.get<PgBossService>(PgBossService);
@@ -63,9 +62,11 @@ describe('JobberGateway (e2e)', () => {
 
   describe('WebSocket Connection', () => {
     it('should reject connection without authentication token', (done) => {
-      const socket = io('http://localhost:3001/ws', {
+      const socket = io('http://localhost:3001', {
+        path: '/ws',
         transports: ['websocket'],
         timeout: 1000,
+        forceNew: true,
       });
 
       socket.on('error', (error) => {
@@ -76,6 +77,7 @@ describe('JobberGateway (e2e)', () => {
 
       socket.on('connect_error', () => {
         // Connection should fail
+        expect(true).toBe(false);
         socket.close();
         done();
       });
@@ -84,7 +86,8 @@ describe('JobberGateway (e2e)', () => {
     it('should reject connection with invalid token', (done) => {
       (prismaService.customerToken.findFirst as jest.Mock).mockResolvedValue(null);
 
-      const socket = io('http://localhost:3001/ws', {
+      const socket = io('http://localhost:3001', {
+        path: '/ws',
         auth: { customerToken: 'invalid-token' },
         transports: ['websocket'],
         timeout: 1000,
@@ -114,7 +117,8 @@ describe('JobberGateway (e2e)', () => {
 
       (prismaService.customerToken.findFirst as jest.Mock).mockResolvedValue(tokenRecord);
 
-      const socket = io('http://localhost:3001/ws', {
+      const socket = io('http://localhost:3001', {
+        path: '/ws',
         auth: { customerToken: testCustomerToken },
         transports: ['websocket'],
         timeout: 2000,
@@ -150,7 +154,8 @@ describe('JobberGateway (e2e)', () => {
 
       (prismaService.customerToken.findFirst as jest.Mock).mockResolvedValue(tokenRecord);
 
-      clientSocket = io('http://localhost:3001/ws', {
+      clientSocket = io('http://localhost:3001', {
+        path: '/ws',
         auth: { customerToken: testCustomerToken },
         transports: ['websocket'],
         timeout: 2000,
@@ -249,7 +254,8 @@ describe('JobberGateway (e2e)', () => {
 
       (prismaService.customerToken.findFirst as jest.Mock).mockResolvedValue(tokenRecord);
 
-      clientSocket = io('http://localhost:3001/ws', {
+      clientSocket = io('http://localhost:3001', {
+        path: '/ws',
         auth: { customerToken: testCustomerToken },
         transports: ['websocket'],
         timeout: 2000,
@@ -324,7 +330,8 @@ describe('JobberGateway (e2e)', () => {
 
       (prismaService.customerToken.findFirst as jest.Mock).mockResolvedValue(tokenRecord);
 
-      clientSocket = io('http://localhost:3001/ws', {
+      clientSocket = io('http://localhost:3001', {
+        path: '/ws',
         auth: { customerToken: testCustomerToken },
         transports: ['websocket'],
         timeout: 2000,
@@ -407,7 +414,8 @@ describe('JobberGateway (e2e)', () => {
 
       (prismaService.customerToken.findFirst as jest.Mock).mockResolvedValue(tokenRecord);
 
-      clientSocket = io('http://localhost:3001/ws', {
+      clientSocket = io('http://localhost:3001', {
+        path: '/ws',
         auth: { customerToken: testCustomerToken },
         transports: ['websocket'],
         timeout: 2000,
