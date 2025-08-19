@@ -68,9 +68,18 @@ jobs:
     - name: Run lint
       run: npm run lint
 
-    - name: Run tests
+    - name: Run tests with coverage
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:5432/testdb
         REDIS_URL: redis://localhost:6379
         SESSION_SECRET: Matt is Jobber's biggest fan and he will die on that hill
-      run: npm test
+      run: npm run test:cov
+
+    # - name: Upload coverage reports to Codecov
+    #   uses: codecov/codecov-action@v3
+    #   with:
+    #     token: ${{ secrets.CODECOV_TOKEN }}
+    #     file: ./coverage/lcov.info
+    #     flags: unittests
+    #     name: codecov-umbrella
+    #     fail_ci_if_error: false
