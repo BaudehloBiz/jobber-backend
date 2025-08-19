@@ -2,7 +2,7 @@ import { init } from '@sentry/nestjs';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
 // Ensure to call this before requiring any other modules!
-// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+
 init({
   dsn: process.env.SENTRY_DSN,
   integrations: [
