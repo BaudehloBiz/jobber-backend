@@ -4,7 +4,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { Socket, io } from 'socket.io-client';
+import io from 'socket.io-client';
 import { JobberGateway } from '../../src/websocket/websocket.gateway';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { PgBossService } from '../../src/common/services/pg-boss.service';
@@ -13,7 +13,7 @@ describe('JobberGateway (e2e)', () => {
   let app: INestApplication;
   let prismaService: PrismaService;
   let pgBossService: PgBossService;
-  let clientSocket: Socket;
+  let clientSocket: SocketIOClient.Socket;
 
   const testCustomerToken = 'test-customer-token-e2e';
   const testCustomerId = 'test-customer-e2e';
