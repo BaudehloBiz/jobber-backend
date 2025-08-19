@@ -186,12 +186,13 @@ describe('JobberGateway', () => {
   describe('Job Status Events', () => {
     it('should emit job started event to all clients', () => {
       const socket = createMockSocket();
-      const eventData = { jobId: 'job-123' };
+      const eventData = { jobName: 'test-job', jobId: 'job-123' };
 
       gateway.handleJobStarted(socket as any, eventData);
 
       const serverEmit = (gateway as any).server.emit;
       expect(serverEmit).toHaveBeenCalledWith('job_started', {
+        jobName: 'test-job',
         jobId: 'job-123',
         startedAt: expect.any(Date),
       });
@@ -200,6 +201,7 @@ describe('JobberGateway', () => {
     it('should emit job completed event to all clients', () => {
       const socket = createMockSocket();
       const eventData = {
+        jobName: 'test-job',
         jobId: 'job-123',
         result: { success: true, data: 'completed' },
       };
@@ -208,6 +210,7 @@ describe('JobberGateway', () => {
 
       const serverEmit = (gateway as any).server.emit;
       expect(serverEmit).toHaveBeenCalledWith('job_completed', {
+        jobName: 'test-job',
         jobId: 'job-123',
         result: { success: true, data: 'completed' },
         completedAt: expect.any(Date),

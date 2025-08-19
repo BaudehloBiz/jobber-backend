@@ -8,6 +8,8 @@ export type WorkHandler<T> = PgBoss.WorkHandler<T>;
 
 const MAX_QUEUE_WAIT = parseInt(process.env.MAX_QUEUE_WAIT || '25000', 10);
 
+class PgBossServiceError extends Error {}
+
 @Injectable()
 export class PgBossService implements OnModuleInit, OnModuleDestroy, OnApplicationShutdown {
   private logger = new Logger(PgBossService.name);
@@ -56,19 +58,32 @@ export class PgBossService implements OnModuleInit, OnModuleDestroy, OnApplicati
   }
 
   async publish<T = object>(queue: string, payload: T, _options: PgBoss.SendOptions = {}): Promise<string> {
+    try {
+      return await this._publish(queue, payload, _options);
+    } catch (e) {
+      if (e instanceof PgBossServiceError) {
+        await this.createQueue(queue);
+        return await this._publish(queue, payload, _options);
+      }
+      throw e;
+    }
+  }
+
+  async _publish<T = object>(queue: string, payload: T, _options: PgBoss.SendOptions = {}): Promise<string> {
     if (!this.boss) {
       throw new Error(`Attempt to publish to ${queue} before application is bootstrapped`);
     }
-    const options = {
-      retryBackoff: true,
-      retryLimit: 5,
+    const options: PgBoss.SendOptions = {
       ..._options,
-    } as PgBoss.SendOptions;
+      retryBackoff: _options.retryBackoff ?? true,
+      retryDelay: _options.retryDelay ?? 1,
+      retryLimit: _options.retryLimit ?? 5,
+    };
 
-    this.logger.log(`Attempt to publish payload ${JSON.stringify(payload)} to ${queue} with options: ${JSON.stringify(_options)}`);
+    this.logger.log(`Attempt to publish payload ${JSON.stringify(payload)} to ${queue} with options: ${JSON.stringify(options)}`);
     const jobId = await this.boss.send(queue, payload as object, options);
     if (!jobId) {
-      throw new Error(`Failed to publish job to ${queue} using options: ${JSON.stringify(options)}`);
+      throw new PgBossServiceError(`Failed to publish job to ${queue} using options: ${JSON.stringify(options)}`);
     }
     return jobId;
   }

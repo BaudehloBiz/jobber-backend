@@ -226,11 +226,11 @@ describe('JobberGateway (e2e)', () => {
     it('should cancel job successfully', (done) => {
       (pgBossService.cancel as jest.Mock).mockResolvedValue(undefined);
 
-      const cancelData = { jobId: 'job-to-cancel' };
+      const cancelData = { jobName: 'test-job', jobId: 'job-to-cancel' };
 
       clientSocket.emit('cancel_job', cancelData, (response: { success?: boolean; error?: string }) => {
         expect(response.success).toBe(true);
-        expect(pgBossService.cancel).toHaveBeenCalledWith('', 'job-to-cancel');
+        expect(pgBossService.cancel).toHaveBeenCalledWith('test-customer-e2e/test-job', 'job-to-cancel');
         done();
       });
     });
