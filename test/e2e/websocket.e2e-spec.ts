@@ -1,45 +1,10 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { Socket, io } from 'socket.io-client';
 import { JobberGateway } from '../../src/websocket/websocket.gateway';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { PgBossService } from '../../src/common/services/pg-boss.service';
-
-interface JobResponse {
-  jobId?: string;
-  error?: string;
-}
-
-interface WorkerResponse {
-  success?: boolean;
-  error?: string;
-}
-
-interface BatchResponse {
-  batchId?: string;
-  jobIds?: string[];
-  error?: string;
-}
-
-interface CancelResponse {
-  success?: boolean;
-  error?: string;
-}
-
-interface QueueSizeResponse {
-  queueSize?: {
-    waiting: number;
-    active: number;
-    completed: number;
-    failed: number;
-  };
-  error?: string;
-}
-
-interface ScheduleResponse {
-  scheduleId?: string;
-  error?: string;
-}
 
 describe('JobberGateway (e2e)', () => {
   let app: INestApplication;
@@ -205,12 +170,12 @@ describe('JobberGateway (e2e)', () => {
         options: { priority: 1 },
       };
 
-      clientSocket.emit('send_job', jobData, (response: any) => {
+      clientSocket.emit('send_job', jobData, (response: { jobId?: string; error?: string }) => {
         expect(response.jobId).toBe('job-123');
         expect(pgBossService.publish).toHaveBeenCalledWith(
           `${testCustomerId}/test-job`,
           { message: 'Hello E2E Test' },
-          expect.objectContaining({ priority: 1 })
+          expect.objectContaining({ priority: 1 }),
         );
         done();
       });
@@ -224,20 +189,15 @@ describe('JobberGateway (e2e)', () => {
         options: { teamConcurrency: 2 },
       };
 
-      clientSocket.emit('register_worker', workerData, (response: any) => {
+      clientSocket.emit('register_worker', workerData, (response: { success?: boolean; error?: string }) => {
         expect(response.success).toBe(true);
-        expect(pgBossService.subscribe).toHaveBeenCalledWith(
-          `${testCustomerId}/test-worker-job`,
-          expect.any(Function)
-        );
+        expect(pgBossService.subscribe).toHaveBeenCalledWith(`${testCustomerId}/test-worker-job`, expect.any(Function));
         done();
       });
     });
 
     it('should send batch jobs successfully', (done) => {
-      (pgBossService.publish as jest.Mock)
-        .mockResolvedValueOnce('batch-job-1')
-        .mockResolvedValueOnce('batch-job-2');
+      (pgBossService.publish as jest.Mock).mockResolvedValueOnce('batch-job-1').mockResolvedValueOnce('batch-job-2');
 
       const batchData = {
         jobs: [
@@ -246,7 +206,7 @@ describe('JobberGateway (e2e)', () => {
         ],
       };
 
-      clientSocket.emit('send_batch', batchData, (response: any) => {
+      clientSocket.emit('send_batch', batchData, (response: { batchId?: string; jobIds?: string[]; error?: string }) => {
         expect(response.batchId).toBeDefined();
         expect(response.jobIds).toEqual(['batch-job-1', 'batch-job-2']);
         expect(pgBossService.publish).toHaveBeenCalledTimes(2);
@@ -259,7 +219,7 @@ describe('JobberGateway (e2e)', () => {
 
       const cancelData = { jobId: 'job-to-cancel' };
 
-      clientSocket.emit('cancel_job', cancelData, (response: any) => {
+      clientSocket.emit('cancel_job', cancelData, (response: { success?: boolean; error?: string }) => {
         expect(response.success).toBe(true);
         expect(pgBossService.cancel).toHaveBeenCalledWith('', 'job-to-cancel');
         done();
@@ -301,7 +261,7 @@ describe('JobberGateway (e2e)', () => {
     });
 
     it('should receive job started events', (done) => {
-      clientSocket.on('job_started', (data) => {
+      clientSocket.on('job_started', (data: { jobId: string; startedAt: Date }) => {
         expect(data.jobId).toBe('job-started-123');
         expect(data.startedAt).toBeDefined();
         done();
@@ -312,7 +272,7 @@ describe('JobberGateway (e2e)', () => {
     });
 
     it('should receive job completed events', (done) => {
-      clientSocket.on('job_completed', (data) => {
+      clientSocket.on('job_completed', (data: { jobId: string; result: Record<string, unknown>; completedAt: Date }) => {
         expect(data.jobId).toBe('job-completed-123');
         expect(data.result).toEqual({ success: true });
         expect(data.completedAt).toBeDefined();
@@ -327,7 +287,7 @@ describe('JobberGateway (e2e)', () => {
     });
 
     it('should receive job failed events', (done) => {
-      clientSocket.on('job_failed', (data) => {
+      clientSocket.on('job_failed', (data: { jobId: string; error: string; failedAt: Date }) => {
         expect(data.jobId).toBe('job-failed-123');
         expect(data.error).toBe('Test error');
         expect(data.failedAt).toBeDefined();
@@ -378,29 +338,37 @@ describe('JobberGateway (e2e)', () => {
     it('should get queue size for specific job', (done) => {
       const sizeData = { jobName: 'specific-job' };
 
-      clientSocket.emit('get_queue_size', sizeData, (response: any) => {
-        expect(response.queueSize).toEqual({
-          waiting: 0,
-          active: 0,
-          completed: 0,
-          failed: 0,
-        });
-        done();
-      });
+      clientSocket.emit(
+        'get_queue_size',
+        sizeData,
+        (response: { queueSize?: { waiting: number; active: number; completed: number; failed: number }; error?: string }) => {
+          expect(response.queueSize).toEqual({
+            waiting: 0,
+            active: 0,
+            completed: 0,
+            failed: 0,
+          });
+          done();
+        },
+      );
     });
 
     it('should get global queue size', (done) => {
       const sizeData = {};
 
-      clientSocket.emit('get_queue_size', sizeData, (response: any) => {
-        expect(response.queueSize).toEqual({
-          waiting: 0,
-          active: 0,
-          completed: 0,
-          failed: 0,
-        });
-        done();
-      });
+      clientSocket.emit(
+        'get_queue_size',
+        sizeData,
+        (response: { queueSize?: { waiting: number; active: number; completed: number; failed: number }; error?: string }) => {
+          expect(response.queueSize).toEqual({
+            waiting: 0,
+            active: 0,
+            completed: 0,
+            failed: 0,
+          });
+          done();
+        },
+      );
     });
 
     it('should schedule job', (done) => {
@@ -410,7 +378,7 @@ describe('JobberGateway (e2e)', () => {
         data: { message: 'Hourly job' },
       };
 
-      clientSocket.emit('schedule_job', scheduleData, (response: any) => {
+      clientSocket.emit('schedule_job', scheduleData, (response: { scheduleId?: string; error?: string }) => {
         expect(response.scheduleId).toBeDefined();
         done();
       });
@@ -458,7 +426,7 @@ describe('JobberGateway (e2e)', () => {
         data: { message: 'This will fail' },
       };
 
-      clientSocket.emit('send_job', jobData, (response: any) => {
+      clientSocket.emit('send_job', jobData, (response: { jobId?: string; error?: string }) => {
         expect(response.error).toBe('Publish failed');
         done();
       });
@@ -472,7 +440,7 @@ describe('JobberGateway (e2e)', () => {
         options: { teamConcurrency: 1 },
       };
 
-      clientSocket.emit('register_worker', workerData, (response: any) => {
+      clientSocket.emit('register_worker', workerData, (response: { success?: boolean; error?: string }) => {
         expect(response.error).toBe('Failed to register worker: Subscribe failed');
         done();
       });
@@ -483,7 +451,7 @@ describe('JobberGateway (e2e)', () => {
 
       const cancelData = { jobId: 'job-cancel-fail' };
 
-      clientSocket.emit('cancel_job', cancelData, (response: any) => {
+      clientSocket.emit('cancel_job', cancelData, (response: { success?: boolean; error?: string }) => {
         expect(response.error).toBe('Cancel failed');
         done();
       });

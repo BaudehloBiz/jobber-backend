@@ -47,7 +47,7 @@ interface ClientConnection {
 @WebSocketGateway({ cors: { origin: '*' }, path: '/ws' })
 export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server: Server | { emit: (event: string, ...args: any[]) => void };
 
   constructor(
     private readonly prisma: PrismaService,
