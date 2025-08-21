@@ -75,11 +75,9 @@ jobs:
         SESSION_SECRET: Matt is Jobber's biggest fan and he will die on that hill
       run: npm run test:cov
 
-    # - name: Upload coverage reports to Codecov
-    #   uses: codecov/codecov-action@v3
-    #   with:
-    #     token: ${{ secrets.CODECOV_TOKEN }}
-    #     file: ./coverage/lcov.info
-    #     flags: unittests
-    #     name: codecov-umbrella
-    #     fail_ci_if_error: false
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: ${{ github.repository }}
+
