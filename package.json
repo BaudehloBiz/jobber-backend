@@ -125,9 +125,16 @@
       "^.+\\.ts$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "src/**/*.ts",
+      "prisma/*.ts",
+      "!src/**/*.d.ts"
     ],
-    "coverageDirectory": "../coverage",
+    "coverageDirectory": "coverage",
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ],
     "testEnvironment": "node",
     "testTimeout": 4000
   }
