@@ -12,6 +12,8 @@ import { Server, Socket } from 'socket.io';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PgBossService } from 'src/common/services/pg-boss.service';
 import { LoggerService } from 'src/common/services/logger';
+import { UseGuards } from '@nestjs/common';
+import { CLS_ID, ClsGuard, ClsService } from 'nestjs-cls';
 
 // Job-related interfaces
 interface JobOptions {
@@ -51,11 +53,13 @@ interface ClientConnection {
 }
 
 @WebSocketGateway({ cors: { origin: '*' }, path: '/ws' })
+@UseGuards(ClsGuard)
 export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server | { emit: (event: string, ...args: any[]) => void };
 
   constructor(
+    private readonly cls: ClsService,
     private readonly prisma: PrismaService,
     private readonly pgBoss: PgBossService,
     private readonly logger: LoggerService,
@@ -65,18 +69,26 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private clients = new Map<string, ClientConnection>();
 
   async handleConnection(client: Socket) {
-    this.logger.log(`Client connecting: ${client.id}`);
+    await this.cls.run(async () => {
+      this.cls.set(CLS_ID, client.id);
+      this.logger.log(`Client connecting: ${client.id}`);
 
-    // Extract auth token from handshake
-    const customerToken = client.handshake.auth?.customerToken as string;
+      // Extract auth token from handshake
+      const customerToken = client.handshake.auth?.customerToken as string;
 
-    if (!customerToken) {
-      this.logger.warn(`Client ${client.id} rejected: missing customer token`);
-      client.emit('error', 'Authentication required');
-      client.disconnect();
-      return;
-    }
+      if (!customerToken) {
+        this.logger.warn(`Client ${client.id} rejected: missing customer token`);
+        client.emit('error', 'Authentication required');
+        client.disconnect();
+        return;
+      }
 
+      // this.cls.setIfUndefined('CLS_ID', customerToken);
+      await this._handleConnection(client, customerToken);
+    });
+  }
+
+  async _handleConnection(client: Socket, customerToken: string) {
     // Look up customer ID from token
     try {
       const tokenRecord = await this.prisma.customerToken.findFirst({

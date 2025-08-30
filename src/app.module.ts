@@ -15,8 +15,8 @@ import { PgBossService } from './common/services/pg-boss.service';
 import { ClsModule } from 'nestjs-cls';
 import { randomUUID } from 'node:crypto';
 import { LoggerService } from './common/services/logger';
-// import { Logger } from './common/services/logger';
 import { JobberGateway } from './websocket/websocket.gateway';
+import { Socket } from 'socket.io';
 
 // app.module.ts
 export async function createAppModule(controllers?: Type<unknown>[], prismaClient?: PrismaClient): Promise<DynamicModule> {
@@ -51,8 +51,9 @@ export async function createAppModuleForTest(controllers?: Type<unknown>[], pris
           mount: true,
           generateId: true,
           idGenerator: (ctx: ExecutionContext): string => {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            return `${ctx.switchToHttp().getRequest().headers['x-request-id'] || randomUUID()}`;
+            return ctx.getType() == 'ws'
+              ? ctx.switchToWs().getClient<Socket>().id
+              : `${ctx.switchToHttp().getRequest<Request>().headers['x-request-id'] || randomUUID()}`;
           },
         },
       }),
