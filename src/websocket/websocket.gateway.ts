@@ -332,7 +332,7 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // For pg-boss, we need to query the job from the database
       // This would require access to the pg-boss internal methods or database
       this.logger.log(`Getting job: ${data.jobId}`);
-      const jobData = await this.pgBoss.boss.getJobById(queueName, data.jobId);
+      const jobData = await this.pgBoss.boss.getJobById(queueName, data.jobId, { includeArchive: true });
       return { status: RequestStatus.OK, job: jobData };
     } catch (error) {
       return { status: RequestStatus.ERROR, error: (error as Error).message };
