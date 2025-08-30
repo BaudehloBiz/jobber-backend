@@ -6,6 +6,8 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { PgBossService } from '../../src/common/services/pg-boss.service';
 import { INestApplication } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import { ClsModule } from 'nestjs-cls';
+import { LoggerService } from 'src/common/services/logger';
 
 describe('JobberGateway (e2e)', () => {
   let app: INestApplication;
@@ -18,7 +20,13 @@ describe('JobberGateway (e2e)', () => {
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [
+        ClsModule.forRoot({
+          guard: { mount: true },
+        }),
+      ],
       providers: [
+        LoggerService,
         JobberGateway,
         {
           provide: PrismaService,

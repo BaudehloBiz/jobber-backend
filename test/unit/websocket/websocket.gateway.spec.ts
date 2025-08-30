@@ -8,6 +8,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JobberGateway } from '../../../src/websocket/websocket.gateway';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { PgBossService } from '../../../src/common/services/pg-boss.service';
+import { ClsModule } from 'nestjs-cls';
+import { LoggerService } from 'src/common/services/logger';
 
 describe('JobberGateway', () => {
   let gateway: JobberGateway;
@@ -24,7 +26,13 @@ describe('JobberGateway', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        ClsModule.forRoot({
+          guard: { mount: true },
+        }),
+      ],
       providers: [
+        LoggerService,
         JobberGateway,
         {
           provide: PrismaService,
