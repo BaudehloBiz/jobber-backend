@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Logger } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -12,6 +11,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PgBossService } from 'src/common/services/pg-boss.service';
+import { LoggerService } from 'src/common/services/logger';
 
 // Job-related interfaces
 interface JobOptions {
@@ -58,9 +58,8 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pgBoss: PgBossService,
+    private readonly logger: LoggerService,
   ) {}
-
-  private readonly logger = new Logger(JobberGateway.name);
 
   // Client connections storage
   private clients = new Map<string, ClientConnection>();

@@ -1,4 +1,4 @@
-import { Logger } from './logger';
+import { LoggerService } from './logger';
 import * as Sentry from '@sentry/nestjs';
 import { HttpException, Injectable, OnApplicationShutdown, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import PgBoss from 'pg-boss';
@@ -12,8 +12,9 @@ class PgBossServiceError extends Error {}
 
 @Injectable()
 export class PgBossService implements OnModuleInit, OnModuleDestroy, OnApplicationShutdown {
-  private logger = new Logger(PgBossService.name);
   public boss: PgBoss;
+
+  constructor(private readonly logger: LoggerService) {}
 
   async onModuleInit(): Promise<void> {
     if (this.boss) {

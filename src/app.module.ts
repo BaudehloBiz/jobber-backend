@@ -1,4 +1,4 @@
-import { DynamicModule, ModuleMetadata, Type } from '@nestjs/common';
+import { DynamicModule, ExecutionContext, ModuleMetadata, Type } from '@nestjs/common';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
 import { ConfigModule } from '@nestjs/config';
@@ -12,6 +12,9 @@ import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { APP_FILTER } from '@nestjs/core';
 import { PrismaClient } from 'generated/prisma/client';
 import { PgBossService } from './common/services/pg-boss.service';
+import { ClsModule } from 'nestjs-cls';
+import { randomUUID } from 'node:crypto';
+import { LoggerService } from './common/services/logger';
 // import { Logger } from './common/services/logger';
 import { JobberGateway } from './websocket/websocket.gateway';
 
@@ -42,6 +45,17 @@ export async function createAppModuleForTest(controllers?: Type<unknown>[], pris
   return {
     controllers,
     imports: [
+      ClsModule.forRoot({
+        global: true,
+        guard: {
+          mount: true,
+          generateId: true,
+          idGenerator: (ctx: ExecutionContext): string => {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            return `${ctx.switchToHttp().getRequest().headers['x-request-id'] || randomUUID()}`;
+          },
+        },
+      }),
       SentryModule.forRoot(),
       prismaClient ? PrismaModule.forTest(prismaClient) : PrismaModule,
       HealthModule,
@@ -55,6 +69,7 @@ export async function createAppModuleForTest(controllers?: Type<unknown>[], pris
       throttlerModule,
     ],
     providers: [
+      LoggerService,
       {
         provide: APP_FILTER,
         useClass: SentryGlobalFilter,

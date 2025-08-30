@@ -2,11 +2,12 @@ import { DynamicModule, Global, Module } from '@nestjs/common';
 import { PrismaClient } from 'generated/prisma/client';
 import { PrismaService } from './prisma.service';
 import { CacheModule } from '@nestjs/cache-manager';
+import { LoggerService } from 'src/common/services/logger';
 
 @Global()
 @Module({
   imports: [CacheModule.register()],
-  providers: [PrismaService],
+  providers: [LoggerService, PrismaService],
   exports: [PrismaService],
 })
 export class PrismaModule {

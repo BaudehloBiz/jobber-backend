@@ -1,7 +1,8 @@
 // import { AuthOrgUserDto, AuthWorkerDto } from '@app/auth/dto/auth-user.dto';
 import { Environment } from '../enums';
-import { ConsoleLogger } from '@nestjs/common';
+import { ConsoleLogger, Injectable } from '@nestjs/common';
 import * as Sentry from '@sentry/node';
+import { ClsService } from 'nestjs-cls';
 
 const LevelMap: Record<string, Sentry.SeverityLevel> = {
   log: 'log',
@@ -11,7 +12,12 @@ const LevelMap: Record<string, Sentry.SeverityLevel> = {
   verbose: 'info',
 };
 
-export class Logger extends ConsoleLogger {
+@Injectable()
+export class LoggerService extends ConsoleLogger {
+  constructor(private readonly cls: ClsService) {
+    super();
+  }
+
   private logMessage(level: string, message: unknown, ...optionalParams: unknown[]): void {
     if (process.env.NODE_ENV == Environment.test && !process.env.TEST_LOGS) {
       return;
@@ -27,7 +33,7 @@ export class Logger extends ConsoleLogger {
         safeMessage = String(message);
       }
     }
-    const formattedMessage = safeMessage.replace(/[\r\n]+/g, '\\n ');
+    const formattedMessage = `[${this.cls.getId()}] ${safeMessage.replace(/[\r\n]+/g, '\\n ')}`;
 
     Sentry.addBreadcrumb({
       message: formattedMessage,
@@ -79,7 +85,7 @@ export class Logger extends ConsoleLogger {
   }
 }
 
-const systemLogger = new Logger('System');
+const systemLogger = new ConsoleLogger('PROCESS');
 process.on('warning', (warning) => {
   systemLogger.warn(warning.name, warning.message, warning.stack);
 });
