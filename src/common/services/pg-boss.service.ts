@@ -62,6 +62,7 @@ export class PgBossService implements OnModuleInit, OnModuleDestroy, OnApplicati
     try {
       return await this._publish(queue, payload, _options);
     } catch (e) {
+      // Magically handle if we didn't create the queue first.
       if (e instanceof PgBossServiceError) {
         await this.createQueue(queue);
         return await this._publish(queue, payload, _options);
@@ -104,6 +105,22 @@ export class PgBossService implements OnModuleInit, OnModuleDestroy, OnApplicati
       }
     };
     return this.boss.work<T>(queue, cb);
+  }
+
+  async schedule<T>(queue: string, cron: string, payload: T, options: PgBoss.SendOptions = {}): Promise<void> {
+    if (!this.boss) {
+      throw new Error(`Attempt to schedule job on ${queue} before application is bootstrapped`);
+    }
+    this.logger.log(`Scheduling job on ${queue} with cron: ${cron} and payload: ${JSON.stringify(payload)}`);
+    await this.boss.schedule(queue, cron, payload as object, options);
+  }
+
+  async queueSize(name: string, before: 'retry' | 'active' | 'completed' | 'cancelled' | 'failed' = 'active'): Promise<number> {
+    if (!this.boss) {
+      throw new Error(`Attempt to get queue size for ${name} before application is bootstrapped`);
+    }
+    this.logger.log(`Getting queue size for ${name}`);
+    return await this.boss.getQueueSize(name, { before });
   }
 
   async cancel(name: string, id: string): Promise<void> {

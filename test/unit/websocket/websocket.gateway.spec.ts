@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Test, TestingModule } from '@nestjs/testing';
-import { JobberGateway } from '../../../src/websocket/websocket.gateway';
+import { JobberGateway, RequestStatus } from '../../../src/websocket/websocket.gateway';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 import { PgBossService } from '../../../src/common/services/pg-boss.service';
 import { ClsModule } from 'nestjs-cls';
@@ -145,7 +145,7 @@ describe('JobberGateway', () => {
           retryLimit: 3,
         }),
       );
-      expect(result).toEqual({ jobId: 'job-123' });
+      expect(result).toEqual({ jobId: 'job-123', status: RequestStatus.OK });
     });
 
     it('should return error for unauthenticated client', async () => {
@@ -157,7 +157,7 @@ describe('JobberGateway', () => {
 
       const result = await gateway.handleSendJob(socket as any, jobData);
 
-      expect(result).toEqual({ error: 'Client not authenticated' });
+      expect(result).toEqual({ status: RequestStatus.ERROR, error: 'Client not authenticated' });
       expect(pgBossService.publish).not.toHaveBeenCalled();
     });
   });
@@ -187,7 +187,7 @@ describe('JobberGateway', () => {
       const result = await gateway.handleRegisterWorker(socket as any, workerData);
 
       expect(pgBossService.subscribe).toHaveBeenCalledWith('customer-123/test-job', expect.any(Function));
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ status: RequestStatus.OK });
     });
   });
 

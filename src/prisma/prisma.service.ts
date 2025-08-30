@@ -37,10 +37,29 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     this.logger.log(`Prisma v${Prisma.prismaVersion.client}`);
 
+    // One day I will figure out how to make this work cleanly.
+    // The problem is: this.$extends() returns a new PrismaClient to be used.
+    /*
+    this.$extends({
+      query: {
+        async $allOperations({ operation, model, args, query }): Promise<unknown> {
+          const start = process.hrtime.bigint();
+          console.log(`Prisma query: ${operation} on ${model} with args: ${JSON.stringify(args)}`);
+          const result = (await query(args)) as unknown;
+          const end = process.hrtime.bigint();
+          metrics.timing(`prisma.sql.${operation}.${model || 'no_model'}`, (end - start) as unknown as number);
+          transformDecimalsToNumbers(result as object);
+          return result;
+        },
+      },
+    });
+    */
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.$use(async (params, next): Promise<any> => {
       // const result = await this.metrics.asyncTimer(next, `prisma.sql.${params.action}.${params.model || "no_model"}`)(params);
       const start = process.hrtime.bigint();
+      this.logger.debug(`Prisma call: ${params.action} on ${params.model} with params: ${JSON.stringify(params.args)}`);
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const result = await next(params);
       const end = process.hrtime.bigint();
@@ -58,15 +77,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleDestroy(): Promise<void> {
     await this.$disconnect();
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async executeSql(sql: string, params?: any[]): Promise<{ rows: any[] }> {
-    sql = sql.replace(/to_regclass\(([^)]+)\)/g, 'to_regclass($1)::text');
-    this.logger.debug(`Executing SQL: ${sql} with params: ${JSON.stringify(params)}`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-    const result: any[] = await this.$queryRawUnsafe(sql, ...(params || []));
-    return { rows: result };
   }
 
   @Interval(intervalTime)

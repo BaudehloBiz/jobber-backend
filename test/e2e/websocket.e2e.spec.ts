@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import io from 'socket.io-client';
-import { JobberGateway } from '../../src/websocket/websocket.gateway';
+import { JobberGateway, RequestStatus } from '../../src/websocket/websocket.gateway';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { PgBossService } from '../../src/common/services/pg-boss.service';
 import { INestApplication } from '@nestjs/common';
@@ -42,6 +42,8 @@ describe('JobberGateway (e2e)', () => {
             publish: jest.fn(),
             subscribe: jest.fn(),
             cancel: jest.fn(),
+            queueSize: jest.fn(),
+            schedule: jest.fn(),
           },
         },
       ],
@@ -206,8 +208,8 @@ describe('JobberGateway (e2e)', () => {
         options: { teamConcurrency: 2 },
       };
 
-      clientSocket.emit('register_worker', workerData, (response: { success?: boolean; error?: string }) => {
-        expect(response.success).toBe(true);
+      clientSocket.emit('register_worker', workerData, (response: { status: RequestStatus; error?: string }) => {
+        expect(response.status).toBe(RequestStatus.OK);
         expect(pgBossService.subscribe).toHaveBeenCalledWith(`${testCustomerId}/test-worker-job`, expect.any(Function));
         done();
       });
@@ -236,8 +238,8 @@ describe('JobberGateway (e2e)', () => {
 
       const cancelData = { jobName: 'test-job', jobId: 'job-to-cancel' };
 
-      clientSocket.emit('cancel_job', cancelData, (response: { success?: boolean; error?: string }) => {
-        expect(response.success).toBe(true);
+      clientSocket.emit('cancel_job', cancelData, (response: { status: RequestStatus; error?: string }) => {
+        expect(response.status).toBe(RequestStatus.OK);
         expect(pgBossService.cancel).toHaveBeenCalledWith('test-customer-e2e/test-job', 'job-to-cancel');
         done();
       });
@@ -355,50 +357,30 @@ describe('JobberGateway (e2e)', () => {
     });
 
     it('should get queue size for specific job', (done) => {
+      (pgBossService.queueSize as jest.Mock).mockResolvedValue(0);
+
       const sizeData = { jobName: 'specific-job' };
 
       clientSocket.emit(
         'get_queue_size',
         sizeData,
         (response: { queueSize?: { waiting: number; active: number; completed: number; failed: number }; error?: string }) => {
-          expect(response.queueSize).toEqual({
-            waiting: 0,
-            active: 0,
-            completed: 0,
-            failed: 0,
-          });
-          done();
-        },
-      );
-    });
-
-    it('should get global queue size', (done) => {
-      const sizeData = {};
-
-      clientSocket.emit(
-        'get_queue_size',
-        sizeData,
-        (response: { queueSize?: { waiting: number; active: number; completed: number; failed: number }; error?: string }) => {
-          expect(response.queueSize).toEqual({
-            waiting: 0,
-            active: 0,
-            completed: 0,
-            failed: 0,
-          });
+          expect(response.queueSize).toEqual(0);
           done();
         },
       );
     });
 
     it('should schedule job', (done) => {
+      (pgBossService.schedule as jest.Mock).mockResolvedValue(undefined);
       const scheduleData = {
         name: 'scheduled-job',
         cronPattern: '0 * * * *',
         data: { message: 'Hourly job' },
       };
 
-      clientSocket.emit('schedule_job', scheduleData, (response: { scheduleId?: string; error?: string }) => {
-        expect(response.scheduleId).toBeDefined();
+      clientSocket.emit('schedule_job', scheduleData, (response: { status: RequestStatus; error?: string }) => {
+        expect(response.status).toBe(RequestStatus.OK);
         done();
       });
     });

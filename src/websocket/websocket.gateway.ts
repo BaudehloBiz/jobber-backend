@@ -14,6 +14,7 @@ import { PgBossService } from 'src/common/services/pg-boss.service';
 import { LoggerService } from 'src/common/services/logger';
 import { UseGuards } from '@nestjs/common';
 import { CLS_ID, ClsGuard, ClsService } from 'nestjs-cls';
+import { randomUUID } from 'node:crypto';
 
 // Job-related interfaces
 interface JobOptions {
@@ -50,6 +51,11 @@ interface ClientConnection {
   connectedAt: Date;
   socket: Socket;
   workers: Set<string>;
+}
+
+export enum RequestStatus {
+  OK = 'ok',
+  ERROR = 'error',
 }
 
 @WebSocketGateway({ cors: { origin: '*' }, path: '/ws' })
@@ -140,7 +146,7 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.logger.log(`Client ${client.id} sending job: ${data.name}`);
       const clientConnection = this.clients.get(client.id);
       if (!clientConnection) {
-        return { error: 'Client not authenticated' };
+        return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
       }
 
       const customerId = clientConnection.customerId;
@@ -158,35 +164,32 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       const jobId = await this.pgBoss.publish(queueName, data.data, jobOptions);
       this.logger.log(`Job sent to queue ${queueName}: ${jobId}`);
-      return { jobId };
+      return { status: RequestStatus.OK, jobId };
     } catch (error) {
       this.logger.error(`Failed to send job: ${(error as Error).message}`);
-      return { error: (error as Error).message };
+      return { status: RequestStatus.ERROR, error: (error as Error).message };
     }
   }
 
   @SubscribeMessage('schedule_job')
-  handleScheduleJob(@ConnectedSocket() client: Socket, @MessageBody() data: { name: string; cronPattern: string; data: unknown; options?: JobOptions }) {
+  async handleScheduleJob(@ConnectedSocket() client: Socket, @MessageBody() data: { name: string; cronPattern: string; data: unknown; options?: JobOptions }) {
     try {
       const clientConnection = this.clients.get(client.id);
       if (!clientConnection) {
-        return { error: 'Client not authenticated' };
+        return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
       }
 
       const customerId = clientConnection.customerId;
       const queueName = `${customerId}/${data.name}`;
 
-      // Note: pg-boss doesn't support cron patterns directly through our current service
-      // For now, we'll simulate it by creating a job with a delay
-      // In a production environment, you might want to use a separate cron job scheduler
-      const scheduleId = `schedule-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      await this.pgBoss.schedule(queueName, data.cronPattern, data.data, data.options);
 
-      this.logger.log(`Job scheduled: ${scheduleId} (${queueName}) - ${data.cronPattern}`);
+      this.logger.log(`Job scheduled: (${queueName}) - ${data.cronPattern}`);
       // This is a simplified implementation - you might want to implement proper cron scheduling
-      return { scheduleId };
+      return { status: RequestStatus.OK };
     } catch (error) {
       this.logger.error(`Failed to schedule job: ${(error as Error).message}`);
-      return { error: (error as Error).message };
+      return { status: RequestStatus.ERROR, error: (error as Error).message };
     }
   }
 
@@ -194,7 +197,7 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleRegisterWorker(@ConnectedSocket() client: Socket, @MessageBody() data: { jobName: string; options?: WorkOptions }) {
     const clientConnection = this.clients.get(client.id);
     if (!clientConnection) {
-      return { error: 'Client not authenticated' };
+      return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
     }
 
     const customerId = clientConnection.customerId;
@@ -222,10 +225,10 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
     } catch (error) {
       this.logger.error(`Failed to subscribe to queue ${queueName}: ${(error as Error).message}`);
-      return { error: `Failed to register worker: ${(error as Error).message}` };
+      return { status: RequestStatus.ERROR, error: `Failed to register worker: ${(error as Error).message}` };
     }
 
-    return { success: true };
+    return { status: RequestStatus.OK };
   }
 
   @SubscribeMessage('job_started')
@@ -277,11 +280,11 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const clientConnection = this.clients.get(client.id);
       if (!clientConnection) {
-        return { error: 'Client not authenticated' };
+        return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
       }
 
       const customerId = clientConnection.customerId;
-      const batchId = this.generateId();
+      const batchId = randomUUID();
       const jobIds: string[] = [];
 
       for (const batchJob of data.jobs) {
@@ -296,10 +299,10 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       this.logger.log(`Batch created: ${batchId} with ${data.jobs.length} jobs`);
-      return { batchId, jobIds };
+      return { status: RequestStatus.OK, batchId, jobIds };
     } catch (error) {
       this.logger.error(`Failed to send batch: ${(error as Error).message}`);
-      return { error: (error as Error).message };
+      return { status: RequestStatus.ERROR, error: (error as Error).message };
     }
   }
 
@@ -320,7 +323,7 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const clientConnection = this.clients.get(client.id);
       if (!clientConnection) {
-        return { error: 'Client not authenticated' };
+        return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
       }
 
       const customerId = clientConnection.customerId;
@@ -330,9 +333,9 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // This would require access to the pg-boss internal methods or database
       this.logger.log(`Getting job: ${data.jobId}`);
       const jobData = await this.pgBoss.boss.getJobById(queueName, data.jobId);
-      return jobData;
+      return { status: RequestStatus.OK, job: jobData };
     } catch (error) {
-      return { error: (error as Error).message };
+      return { status: RequestStatus.ERROR, error: (error as Error).message };
     }
   }
 
@@ -341,7 +344,7 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const clientConnection = this.clients.get(client.id);
       if (!clientConnection) {
-        return { error: 'Client not authenticated' };
+        return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
       }
 
       const customerId = clientConnection.customerId;
@@ -354,50 +357,39 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       this.logger.log(`Job cancelled: ${data.jobId}`);
       this.server.emit('job_cancelled', { jobId: data.jobId, cancelledAt: new Date() });
-      return { success: true };
+      return { status: RequestStatus.OK };
     } catch (error) {
       this.logger.error(`Failed to cancel job: ${(error as Error).message}`);
-      return { error: (error as Error).message };
+      return { status: RequestStatus.ERROR, error: (error as Error).message };
     }
   }
 
   @SubscribeMessage('get_queue_size')
-  handleGetQueueSize(@ConnectedSocket() client: Socket, @MessageBody() data: { jobName?: string }) {
+  async handleGetQueueSize(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { jobName: string; before: 'retry' | 'active' | 'completed' | 'cancelled' | 'failed' },
+  ) {
     try {
       const clientConnection = this.clients.get(client.id);
       if (!clientConnection) {
-        return { error: 'Client not authenticated' };
+        return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
+      }
+      if (!data.jobName) {
+        return { status: RequestStatus.ERROR, error: 'Job name is required' };
       }
 
       const customerId = clientConnection.customerId;
 
-      // For pg-boss, getting queue size requires different approach
-      // This is a simplified implementation - you might need to query the pg-boss tables directly
-      const queueSize = {
-        waiting: 0,
-        active: 0,
-        completed: 0,
-        failed: 0,
-      };
+      // Get size for specific queue
+      const queueName = `${customerId}/${data.jobName}`;
+      this.logger.log(`Getting queue size for: ${queueName}`);
 
-      if (data.jobName) {
-        // Get size for specific queue
-        const queueName = `${customerId}/${data.jobName}`;
-        this.logger.log(`Getting queue size for: ${queueName}`);
-      } else {
-        // Get global size for customer
-        this.logger.log(`Getting global queue size for customer: ${customerId}`);
-      }
+      const queueSize = await this.pgBoss.queueSize(queueName, data.before);
 
-      return { queueSize };
+      return { status: RequestStatus.OK, queueSize };
     } catch (error) {
       this.logger.error(`Failed to get queue size: ${(error as Error).message}`);
       return { error: (error as Error).message };
     }
-  }
-
-  // Private helper methods
-  private generateId(): string {
-    return `job-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 }
