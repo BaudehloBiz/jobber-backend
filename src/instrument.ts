@@ -1,5 +1,5 @@
-import { init } from "@sentry/nestjs";
-import { nodeProfilingIntegration } from "@sentry/profiling-node";
+import { init } from '@sentry/nestjs';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
 // Ensure to call this before requiring any other modules!
 

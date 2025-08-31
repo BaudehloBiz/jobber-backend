@@ -1,12 +1,13 @@
+/* eslint-disable @typescript-eslint/unbound-method */
+import { Test, TestingModule } from '@nestjs/testing';
+import io from 'socket.io-client';
+import { JobberGateway, RequestStatus } from '../../src/websocket/websocket.gateway';
+import { PrismaService } from '../../src/prisma/prisma.service';
+import { PgBossService } from '../../src/common/services/pg-boss.service';
 import { INestApplication } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
-import { Test, TestingModule } from '@nestjs/testing';
 import { ClsModule } from 'nestjs-cls';
-import io from 'socket.io-client';
 import { LoggerService } from 'src/common/services/logger';
-import { PgBossService } from '../../src/common/services/pg-boss.service';
-import { PrismaService } from '../../src/prisma/prisma.service';
-import { JobberGateway, RequestStatus } from '../../src/websocket/websocket.gateway';
 
 describe('JobberGateway (e2e)', () => {
   let app: INestApplication;

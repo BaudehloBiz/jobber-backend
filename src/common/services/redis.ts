@@ -1,30 +1,38 @@
-import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit, Optional } from "@nestjs/common";
-import Redis, { Cluster } from "ioredis";
-import Redlock, { type Lock } from "redlock";
-import { isProduction } from "../enums/environment";
-import { LoggerService } from "./logger";
+import Redis, { Cluster } from 'ioredis';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import { isProduction } from '../enums/environment';
+import Redlock, { Lock } from 'redlock';
+import { LoggerService } from './logger';
 
 export { Cluster };
-const REDIS_LOCK_DEFAULT_TTL = parseInt(process.env.REDIS_LOCK_DEFAULT_TTL || "20000", 10);
+const REDIS_LOCK_DEFAULT_TTL = parseInt(process.env.REDIS_LOCK_DEFAULT_TTL || '20000', 10);
 
 const store = {};
 
-declare module "redlock" {
+declare module 'redlock' {
   interface Lock {
     safeRelease(): Promise<void>;
   }
 }
 
 export class RedisMock {
+  // eslint-disable-next-line @typescript-eslint/require-await
   async get(key: string): Promise<string | null> {
     return store[key] !== undefined ? (store[key] as string) : null;
   }
 
-  async set(key: string, value: string, ..._ignoreArgs): Promise<string | null> {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async set(
+    key: string,
+    value: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    ..._ignoreArgs
+  ): Promise<string | null> {
     store[key] = value;
-    return "OK";
+    return 'OK';
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async del(...keys: string[]): Promise<number | null> {
     let count = 0;
     for (const key of keys) {
@@ -36,6 +44,7 @@ export class RedisMock {
     return count;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/require-await
   async getex(key: string, ..._ignoreArgs): Promise<string | null> {
     return store[key] !== undefined ? (store[key] as string) : null;
   }
@@ -44,22 +53,25 @@ export class RedisMock {
     // do nothing
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async ping(): Promise<string> {
-    return "PONG";
+    return 'PONG';
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async info(key: string): Promise<string> {
-    if (key === "memory") {
-      return "used_memory:123456\npeak_memory:123456\n";
+    if (key === 'memory') {
+      return 'used_memory:123456\npeak_memory:123456\n';
     }
-    return "";
+    return '';
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async cluster(command: string): Promise<string> {
-    if (command === "INFO") {
-      return "cluster_state:ok\n";
+    if (command === 'INFO') {
+      return 'cluster_state:ok\n';
     }
-    return "";
+    return '';
   }
 
   async disconnect(): Promise<void> {
@@ -89,6 +101,7 @@ export type RedisClientT = Redis | Cluster | RedisMock | undefined;
 @Injectable()
 export class RedisService<T extends RedisClientT> implements OnModuleInit, OnModuleDestroy {
   private client: RedisClientT;
+  private retryStrategyErrorDetected = false;
   private redlock: Redlock;
 
   constructor(@Optional() @Inject(LoggerService) private readonly logger?: LoggerService) {}
@@ -98,7 +111,7 @@ export class RedisService<T extends RedisClientT> implements OnModuleInit, OnMod
       return;
     }
 
-    const host = process.env.REDIS_HOST || (isProduction ? "redis.internal" : "localhost");
+    const host = process.env.REDIS_HOST || (isProduction ? 'redis.internal' : 'localhost');
     const port = Number(process.env.REDIS_PORT) || 6379;
 
     if (process.env.REDIS_USE_CLUSTER) {
@@ -134,12 +147,12 @@ export class RedisService<T extends RedisClientT> implements OnModuleInit, OnMod
       automaticExtensionThreshold: 500, // time in ms
     });
 
-    this.client.on("error", (err) => {
-      this.logger?.error("Redis Client Error", err);
+    this.client.on('error', (err) => {
+      this.logger?.error('Redis Client Error', err);
       process.exit(1);
     });
 
-    if (this.client.status === "wait") {
+    if (this.client.status === 'wait') {
       await this.client.connect();
     }
   }
@@ -186,8 +199,8 @@ export class RedisService<T extends RedisClientT> implements OnModuleInit, OnMod
   }
 }
 
-import type { HealthIndicatorResult, HealthIndicatorService } from "@nestjs/terminus";
-import { promiseTimeout } from "../utils/promise-timeout";
+import { HealthIndicatorResult, HealthIndicatorService } from '@nestjs/terminus';
+import { promiseTimeout } from '../utils/promise-timeout';
 
 export interface RedisCheckSettings {
   client: RedisClientT;
@@ -217,27 +230,25 @@ export class RedisHealthIndicator {
 
     const { client } = options;
     if (!client) {
-      throw new Error("Redis client is not provided");
+      throw new Error('Redis client is not provided');
     }
 
-    const type = process.env.REDIS_USE_CLUSTER ? "cluster" : "redis";
+    const type = process.env.REDIS_USE_CLUSTER ? 'cluster' : 'redis';
 
     try {
-      if (type === "redis") {
+      if (type === 'redis') {
         await promiseTimeout(options.timeout ?? 1000, client.ping());
         if (options.memoryThreshold) {
-          const info = await client.info("memory");
-          const usedMemory = parseInt(info.match(/used_memory:(\d+)/)?.[1] || "0", 10);
+          const info = await client.info('memory');
+          const usedMemory = parseInt(info.match(/used_memory:(\d+)/)?.[1] || '0', 10);
           if (usedMemory > options.memoryThreshold) {
-            throw new Error(
-              `Memory usage is too high: ${usedMemory} bytes, threshold is ${options.memoryThreshold} bytes`,
-            );
+            throw new Error(`Memory usage is too high: ${usedMemory} bytes, threshold is ${options.memoryThreshold} bytes`);
           }
         }
       } else {
-        const clusterInfo = await client.cluster("INFO");
-        if (typeof clusterInfo === "string") {
-          if (!clusterInfo.includes("cluster_state:ok")) throw new Error(`INFO CLUSTER is not on OK state.`);
+        const clusterInfo = await client.cluster('INFO');
+        if (typeof clusterInfo === 'string') {
+          if (!clusterInfo.includes('cluster_state:ok')) throw new Error(`INFO CLUSTER is not on OK state.`);
         } else throw new Error(`INFO CLUSTER is null or can't be read.`);
       }
 

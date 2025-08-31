@@ -1,6 +1,6 @@
-import { repl } from "@nestjs/core";
-import { createAppModule } from "./app.module";
-import { isProduction } from "./common/enums";
+import { repl } from '@nestjs/core';
+import { createAppModule } from './app.module';
+import { isProduction } from './common/enums';
 
 async function bootstrap(): Promise<void> {
   const appModule = await createAppModule();

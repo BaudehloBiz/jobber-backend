@@ -1,7 +1,7 @@
-import { TestingModule } from '@nestjs/testing';
-import { createId as cuid } from '@paralleldrive/cuid2';
 import { Job, PgBossService } from 'src/common/services/pg-boss.service';
 import { createModule } from 'test/helpers/unit-module.helper';
+import { createId as cuid } from '@paralleldrive/cuid2';
+import { TestingModule } from '@nestjs/testing';
 
 describe('PgBossService', () => {
   let service: PgBossService;
@@ -27,6 +27,7 @@ describe('PgBossService', () => {
     await service.createQueue(queueName);
     await service.subscribe(queueName, queueRunner);
     await service.publish(queueName, { test: 'test' });
+    // eslint-disable-next-line @typescript-eslint/require-await
     async function queueRunner(job: Job[]): Promise<void> {
       expect(job[0].data).toEqual(expected);
     }
@@ -38,6 +39,7 @@ describe('PgBossService', () => {
     await service.subscribe(queueName, queueRunner);
     let isRetry = false;
     await service.publish(queueName, { test: 'test' }, { retryLimit: 1 });
+    // eslint-disable-next-line @typescript-eslint/require-await
     async function queueRunner(job: Job[]): Promise<void> {
       if (isRetry) {
         expect(isRetry).toBe(true);
@@ -53,6 +55,7 @@ describe('PgBossService', () => {
     await service.subscribe(queueName, queueRunner);
     const currentTime = Date.now();
     await service.publish(queueName, { test: 'test' }, { startAfter: 5 });
+    // eslint-disable-next-line @typescript-eslint/require-await
     async function queueRunner(job: Job[]): Promise<void> {
       const now = Date.now();
       expect(job[0].id).toBeDefined();
