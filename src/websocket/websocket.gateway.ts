@@ -1,20 +1,19 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { randomUUID } from "node:crypto";
+import { UseGuards } from "@nestjs/common";
 import {
   ConnectedSocket,
   MessageBody,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
+  type OnGatewayConnection,
+  type OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
-} from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { PgBossService } from 'src/common/services/pg-boss.service';
-import { LoggerService } from 'src/common/services/logger';
-import { UseGuards } from '@nestjs/common';
-import { CLS_ID, ClsGuard, ClsService } from 'nestjs-cls';
-import { randomUUID } from 'node:crypto';
+} from "@nestjs/websockets";
+import { CLS_ID, ClsGuard, type ClsService } from "nestjs-cls";
+import type { Server, Socket } from "socket.io";
+import type { LoggerService } from "src/common/services/logger";
+import type { PgBossService } from "src/common/services/pg-boss.service";
+import type { PrismaService } from "src/prisma/prisma.service";
 
 // Job-related interfaces
 interface JobOptions {
@@ -54,14 +53,15 @@ interface ClientConnection {
 }
 
 export enum RequestStatus {
-  OK = 'ok',
-  ERROR = 'error',
+  OK = "ok",
+  ERROR = "error",
 }
 
-@WebSocketGateway({ cors: { origin: '*' }, path: '/ws' })
+@WebSocketGateway({ cors: { origin: "*" }, path: "/ws" })
 @UseGuards(ClsGuard)
 export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
+  // biome-ignore lint/suspicious/noExplicitAny: impossible to fix
   server: Server | { emit: (event: string, ...args: any[]) => void };
 
   constructor(
@@ -76,7 +76,7 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: Socket) {
     await this.cls.run(async () => {
-      this.cls.set(CLS_ID, client.id);
+      this.cls.set(CLS_ID, randomUUID());
       this.logger.log(`Client connecting: ${client.id}`);
 
       // Extract auth token from handshake
@@ -84,12 +84,11 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       if (!customerToken) {
         this.logger.warn(`Client ${client.id} rejected: missing customer token`);
-        client.emit('error', 'Authentication required');
+        client.emit("error", "Authentication required");
         client.disconnect();
         return;
       }
 
-      // this.cls.setIfUndefined('CLS_ID', customerToken);
       await this._handleConnection(client, customerToken);
     });
   }
@@ -106,7 +105,7 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       if (!tokenRecord) {
         this.logger.warn(`Client ${client.id} rejected: invalid customer token`);
-        client.emit('error', 'Invalid authentication token');
+        client.emit("error", "Invalid authentication token");
         client.disconnect();
         return;
       }
@@ -122,11 +121,13 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
       };
 
       this.clients.set(client.id, clientConnection);
-      this.logger.log(`Client authenticated: ${client.id} ${clientConnection.id} (customer: ${tokenRecord.customerId})`);
-      client.emit('client_ready', { id: clientConnection.id, customerId: tokenRecord.customerId });
+      this.logger.log(
+        `Client authenticated: ${client.id} ${clientConnection.id} (customer: ${tokenRecord.customerId})`,
+      );
+      client.emit("client_ready", { id: clientConnection.id, customerId: tokenRecord.customerId });
     } catch (error) {
       this.logger.error(`Authentication error for client ${client.id}: ${(error as Error).message}`);
-      client.emit('error', 'Authentication failed');
+      client.emit("error", "Authentication failed");
       client.disconnect();
       return;
     }
@@ -140,13 +141,16 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  @SubscribeMessage('send_job')
-  async handleSendJob(@ConnectedSocket() client: Socket, @MessageBody() data: { name: string; data: unknown; options?: JobOptions }) {
+  @SubscribeMessage("send_job")
+  async handleSendJob(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { name: string; data: unknown; options?: JobOptions },
+  ) {
     try {
       this.logger.log(`Client ${client.id} sending job: ${data.name}`);
       const clientConnection = this.clients.get(client.id);
       if (!clientConnection) {
-        return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
+        return { status: RequestStatus.ERROR, error: "Client not authenticated" };
       }
 
       const customerId = clientConnection.customerId;
@@ -171,12 +175,15 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  @SubscribeMessage('schedule_job')
-  async handleScheduleJob(@ConnectedSocket() client: Socket, @MessageBody() data: { name: string; cronPattern: string; data: unknown; options?: JobOptions }) {
+  @SubscribeMessage("schedule_job")
+  async handleScheduleJob(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { name: string; cronPattern: string; data: unknown; options?: JobOptions },
+  ) {
     try {
       const clientConnection = this.clients.get(client.id);
       if (!clientConnection) {
-        return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
+        return { status: RequestStatus.ERROR, error: "Client not authenticated" };
       }
 
       const customerId = clientConnection.customerId;
@@ -193,11 +200,14 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  @SubscribeMessage('register_worker')
-  async handleRegisterWorker(@ConnectedSocket() client: Socket, @MessageBody() data: { jobName: string; options?: WorkOptions }) {
+  @SubscribeMessage("register_worker")
+  async handleRegisterWorker(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { jobName: string; options?: WorkOptions },
+  ) {
     const clientConnection = this.clients.get(client.id);
     if (!clientConnection) {
-      return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
+      return { status: RequestStatus.ERROR, error: "Client not authenticated" };
     }
 
     const customerId = clientConnection.customerId;
@@ -211,11 +221,11 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await this.pgBoss.subscribe(queueName, async (jobs) => {
         for (const job of jobs) {
           this.logger.log(`Sending job ${job.id} to worker ${clientConnection.id}`);
-          client.emit('work_request', {
+          client.emit("work_request", {
             id: job.id,
             name: data.jobName,
             data: job.data,
-            state: 'created',
+            state: "created",
             retryCount: 0,
             priority: 0,
             createdAt: new Date(),
@@ -231,23 +241,23 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { status: RequestStatus.OK };
   }
 
-  @SubscribeMessage('job_started')
-  handleJobStarted(@ConnectedSocket() client: Socket, @MessageBody() data: JobRequest) {
+  @SubscribeMessage("job_started")
+  handleJobStarted(@ConnectedSocket() _client: Socket, @MessageBody() data: JobRequest) {
     // With pg-boss, job status is handled internally
     // We can still emit events for real-time updates
     this.logger.log(`Job started: ${data.jobId}`);
-    this.server.emit('job_started', { jobName: data.jobName, jobId: data.jobId, startedAt: new Date() });
+    this.server.emit("job_started", { jobName: data.jobName, jobId: data.jobId, startedAt: new Date() });
   }
 
-  @SubscribeMessage('job_completed')
-  handleJobCompleted(@ConnectedSocket() client: Socket, @MessageBody() data: JobRequest & { result?: unknown }) {
+  @SubscribeMessage("job_completed")
+  handleJobCompleted(@ConnectedSocket() _client: Socket, @MessageBody() data: JobRequest & { result?: unknown }) {
     try {
       // Mark the job as completed in pg-boss
       // Note: pg-boss automatically handles completion when the worker function resolves
       this.logger.log(`Job completed: ${data.jobId}`);
 
       // Emit completion event to all clients
-      this.server.emit('job_completed', {
+      this.server.emit("job_completed", {
         jobName: data.jobName,
         jobId: data.jobId,
         result: data.result,
@@ -258,13 +268,13 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  @SubscribeMessage('job_failed')
-  handleJobFailed(@ConnectedSocket() client: Socket, @MessageBody() data: JobRequest & { error: string }) {
+  @SubscribeMessage("job_failed")
+  handleJobFailed(@ConnectedSocket() _client: Socket, @MessageBody() data: JobRequest & { error: string }) {
     try {
       this.logger.log(`Job failed: ${data.jobId} - ${data.error}`);
 
       // Emit failure event to all clients
-      this.server.emit('job_failed', {
+      this.server.emit("job_failed", {
         jobName: data.jobName,
         jobId: data.jobId,
         error: data.error,
@@ -275,12 +285,12 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  @SubscribeMessage('send_batch')
+  @SubscribeMessage("send_batch")
   async handleSendBatch(@ConnectedSocket() client: Socket, @MessageBody() data: { jobs: BatchJob[] }) {
     try {
       const clientConnection = this.clients.get(client.id);
       if (!clientConnection) {
-        return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
+        return { status: RequestStatus.ERROR, error: "Client not authenticated" };
       }
 
       const customerId = clientConnection.customerId;
@@ -306,24 +316,24 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  @SubscribeMessage('wait_for_batch')
-  handleWaitForBatch(@ConnectedSocket() client: Socket, @MessageBody() data: { batchId: string }) {
+  @SubscribeMessage("wait_for_batch")
+  handleWaitForBatch(@ConnectedSocket() _client: Socket, @MessageBody() data: { batchId: string }) {
     try {
       // For pg-boss, we need to implement batch waiting differently
       // This is a simplified implementation
       this.logger.log(`Waiting for batch: ${data.batchId}`);
-      return { message: 'Batch waiting implemented via pg-boss' };
+      return { message: "Batch waiting implemented via pg-boss" };
     } catch (error) {
       return { error: (error as Error).message };
     }
   }
 
-  @SubscribeMessage('get_job')
+  @SubscribeMessage("get_job")
   async handleGetJob(@ConnectedSocket() client: Socket, @MessageBody() data: JobRequest) {
     try {
       const clientConnection = this.clients.get(client.id);
       if (!clientConnection) {
-        return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
+        return { status: RequestStatus.ERROR, error: "Client not authenticated" };
       }
 
       const customerId = clientConnection.customerId;
@@ -339,12 +349,12 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  @SubscribeMessage('cancel_job')
+  @SubscribeMessage("cancel_job")
   async handleCancelJob(@ConnectedSocket() client: Socket, @MessageBody() data: JobRequest) {
     try {
       const clientConnection = this.clients.get(client.id);
       if (!clientConnection) {
-        return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
+        return { status: RequestStatus.ERROR, error: "Client not authenticated" };
       }
 
       const customerId = clientConnection.customerId;
@@ -356,7 +366,7 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await this.pgBoss.cancel(queueName, data.jobId); // pg-boss cancel by job ID
 
       this.logger.log(`Job cancelled: ${data.jobId}`);
-      this.server.emit('job_cancelled', { jobId: data.jobId, cancelledAt: new Date() });
+      this.server.emit("job_cancelled", { jobId: data.jobId, cancelledAt: new Date() });
       return { status: RequestStatus.OK };
     } catch (error) {
       this.logger.error(`Failed to cancel job: ${(error as Error).message}`);
@@ -364,18 +374,18 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  @SubscribeMessage('get_queue_size')
+  @SubscribeMessage("get_queue_size")
   async handleGetQueueSize(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { jobName: string; before: 'retry' | 'active' | 'completed' | 'cancelled' | 'failed' },
+    @MessageBody() data: { jobName: string; before: "retry" | "active" | "completed" | "cancelled" | "failed" },
   ) {
     try {
       const clientConnection = this.clients.get(client.id);
       if (!clientConnection) {
-        return { status: RequestStatus.ERROR, error: 'Client not authenticated' };
+        return { status: RequestStatus.ERROR, error: "Client not authenticated" };
       }
       if (!data.jobName) {
-        return { status: RequestStatus.ERROR, error: 'Job name is required' };
+        return { status: RequestStatus.ERROR, error: "Job name is required" };
       }
 
       const customerId = clientConnection.customerId;

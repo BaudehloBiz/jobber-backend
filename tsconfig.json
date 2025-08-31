@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "preserveWatchOutput": true,
     "module": "commonjs",
     "declaration": true,
     "removeComments": true,
@@ -29,9 +30,5 @@
     // This improves issue grouping in Sentry.
     "sourceRoot": "/"
   },
-  "include": [
-    "src/**/*.ts",
-    "test/**/*.ts",
-    "prisma/**/*.ts",
-  ]
+  "include": ["src/**/*.ts", "test/**/*.ts", "prisma/**/*.ts"]
 }

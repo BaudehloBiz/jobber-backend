@@ -1,8 +1,8 @@
-import { DynamicModule, Global, Module } from '@nestjs/common';
-import { PrismaClient } from 'generated/prisma/client';
-import { PrismaService } from './prisma.service';
-import { CacheModule } from '@nestjs/cache-manager';
-import { LoggerService } from 'src/common/services/logger';
+import { CacheModule } from "@nestjs/cache-manager";
+import { type DynamicModule, Global, Module } from "@nestjs/common";
+import type { PrismaClient } from "generated/prisma/client";
+import { LoggerService } from "src/common/services/logger";
+import { PrismaService } from "./prisma.service";
 
 @Global()
 @Module({
@@ -10,6 +10,7 @@ import { LoggerService } from 'src/common/services/logger';
   providers: [LoggerService, PrismaService],
   exports: [PrismaService],
 })
+// biome-ignore lint/complexity/noStaticOnlyClass: This is just NestJS style
 export class PrismaModule {
   // with the help of `DynamicModule` we can import `PrismaModule` with existing client.
   static forTest(prismaClient: PrismaClient): DynamicModule {
