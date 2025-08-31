@@ -1,22 +1,21 @@
-import { DynamicModule, ExecutionContext, ModuleMetadata, Type } from '@nestjs/common';
-import { AppService } from './app.service';
-import { HealthModule } from './health/health.module';
-import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from './prisma/prisma.module';
-import { HotShotsModule } from 'nestjs-hot-shots';
-import { ThrottlerModule, seconds } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
-import { Cluster, RedisManagerService, RedisService } from './common/services/redis';
-import Redis from 'ioredis';
-import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
+import { DynamicModule, ModuleMetadata, Type } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
+import { ThrottlerModule, seconds } from '@nestjs/throttler';
+import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { PrismaClient } from 'generated/prisma/client';
-import { PgBossService } from './common/services/pg-boss.service';
-import { ClsModule } from 'nestjs-cls';
+import Redis from 'ioredis';
+import { ClsModule, ClsServiceManager } from 'nestjs-cls';
+import { HotShotsModule } from 'nestjs-hot-shots';
 import { randomUUID } from 'node:crypto';
+import { AppService } from './app.service';
 import { LoggerService } from './common/services/logger';
+import { PgBossService } from './common/services/pg-boss.service';
+import { Cluster, RedisManagerService, RedisService } from './common/services/redis';
+import { HealthModule } from './health/health.module';
+import { PrismaModule } from './prisma/prisma.module';
 import { JobberGateway } from './websocket/websocket.gateway';
-import { Socket } from 'socket.io';
 
 // app.module.ts
 export async function createAppModule(controllers?: Type<unknown>[], prismaClient?: PrismaClient): Promise<DynamicModule> {
@@ -50,10 +49,9 @@ export async function createAppModuleForTest(controllers?: Type<unknown>[], pris
         guard: {
           mount: true,
           generateId: true,
-          idGenerator: (ctx: ExecutionContext): string => {
-            return ctx.getType() == 'ws'
-              ? ctx.switchToWs().getClient<Socket>().id
-              : `${ctx.switchToHttp().getRequest<Request>().headers['x-request-id'] || randomUUID()}`;
+          idGenerator: (): string => {
+            const cls = ClsServiceManager.getClsService();
+            return cls.getId() || randomUUID();
           },
         },
       }),

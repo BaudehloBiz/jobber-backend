@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { UseGuards } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -8,13 +9,12 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { PgBossService } from 'src/common/services/pg-boss.service';
-import { LoggerService } from 'src/common/services/logger';
-import { UseGuards } from '@nestjs/common';
 import { CLS_ID, ClsGuard, ClsService } from 'nestjs-cls';
 import { randomUUID } from 'node:crypto';
+import { Server, Socket } from 'socket.io';
+import { LoggerService } from 'src/common/services/logger';
+import { PgBossService } from 'src/common/services/pg-boss.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 // Job-related interfaces
 interface JobOptions {
@@ -76,7 +76,7 @@ export class JobberGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: Socket) {
     await this.cls.run(async () => {
-      this.cls.set(CLS_ID, client.id);
+      this.cls.set(CLS_ID, randomUUID());
       this.logger.log(`Client connecting: ${client.id}`);
 
       // Extract auth token from handshake
